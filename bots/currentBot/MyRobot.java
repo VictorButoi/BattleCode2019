@@ -20,7 +20,10 @@ public class MyRobot extends BCAbstractRobot {
 	public Pair startingLocation;
 	public Pair target;
 	public LinkedList<Pair> workerOrders = new LinkedList<Pair>();
-	public LinkedList<Pair> resourceSpots = new LinkedList<Pair>();
+	public LinkedList<Pair> fuelOrders = new LinkedList<Pair>();
+	public LinkedList<Pair> karboniteOrders = new LinkedList<Pair>();
+	public LinkedList<Pair> copyFuel = new LinkedList<Pair>();
+	public LinkedList<Pair> copyKarbonite = new LinkedList<Pair>();
 	public LinkedList<Pair> workerPath = new LinkedList<Pair>();
 	public LinkedList<Pair> teamCastles = new LinkedList<Pair>();
 	public LinkedList<Pair> enemyCastles = new LinkedList<Pair>();
@@ -50,6 +53,11 @@ public class MyRobot extends BCAbstractRobot {
 	public int pilgrimsMade;
 	public Pair closeChurch;
 	public boolean churchNearby = false;
+	public Pair latticeSpot;
+	public boolean settled = false;
+	public boolean castleNearby;
+	public boolean miningKarb;
+	public boolean churchBuilt;
 	
 	//Pairs are X,Y
     public Action turn() {
@@ -61,8 +69,8 @@ public class MyRobot extends BCAbstractRobot {
 			if (turn == 1){ // check if first castle in turn
 				//log("before castle initial");
 				castleInitial();
-				//log("castle Initial DONE");
 				numberCastles = teamCastlesID.size()+1;
+				//log("pilgrims to be made per castle: " + ((fuelOrders.size()+karboniteOrders.size())/numberCastles));
 				teamCastles.add(currentLocation);
 				if (numberCastles == 1){
 					finishedSetup = true;
@@ -74,176 +82,7 @@ public class MyRobot extends BCAbstractRobot {
 			}
 			Robot[] nearbyRobots = getVisibleRobots();
 			
-			if(enemyTargetID != 0){
-				boolean found = false;
-				Robot pickedTarget = null;
-				if (nearbyRobots.length != 0){
-					for (int z = 0; z < nearbyRobots.length; z++){
-						if (nearbyRobots[z].id == enemyTargetID){
-							found = true;
-							pickedTarget = nearbyRobots[z];
-							break;
-						}
-					}
-				}
-				if (found){
-					double dist = Math.pow(calculateDistance(new Pair(pickedTarget.x,pickedTarget.y),new Pair(this.me.x,this.me.y)),2);
-					if(this.karbonite >= 25 && dist > 16){
-						int dy = pickedTarget.y - currentLocation.y;
-						int dx = pickedTarget.x - currentLocation.x;
-						for(int d = 0; d < directions.size(); d++){
-							Pair selectedDir = directions.get(d);
-							if (Math.abs(dx) >= Math.abs(dy)){
-								dy = pickedTarget.y - currentLocation.y;
-								dx = pickedTarget.x - currentLocation.x;
-								log("in dx check");
-								if (dx > 0){
-									//log("dx negative");
-									dx = -1;
-								}
-								else{
-									//log("dx positive");
-									dx = 1;
-								}
-								if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false) && selectedDir.x == dx){
-								//signal enemy location and make prophet move away, spawn opposite signal
-									Pair enemyL = new Pair(pickedTarget.x,pickedTarget.y);
-									enemyTargetID = pickedTarget.id;
-									this.signal(shiftLoc(enemyL),16);
-									return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
-								}
-							}
-							else{
-								//log("in dy check");
-								if (dy > 0){
-									dy = -1;
-								}
-								else{
-									dy = 1;
-								}
-								if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false) && selectedDir.y == dy){
-								//signal enemy location and make prophet move away, spawn opposite side of 
-									Pair enemyL = new Pair(pickedTarget.x,pickedTarget.y);
-									enemyTargetID = pickedTarget.id;
-									this.signal(shiftLoc(enemyL),16);
-									return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
-								}
-							}
-						}
-					}
-					else if(this.fuel >= 10 && dist <= 16){
-						return attack(pickedTarget.x - this.me.x, pickedTarget.y - this.me.y);
-					}
-				}
-			}
-			/*
-			for (int i = 0; i < nearbyRobots.length; i++){
-				if (nearbyRobots[i].team == this.me.team && nearbyRobots[i].signal != -1 && nearbyRobots[i].id != this.me.id){
-					enemyTargetID = nearbyRobots[i].signal;
-					break;
-				}
-			}
-			*/
-			
-				
-			for (int i = 0; i < nearbyRobots.length; i++){
-
-				double dist = Math.pow(calculateDistance(new Pair(nearbyRobots[i].x,nearbyRobots[i].y),new Pair(this.me.x,this.me.y)),2);
-				if (nearbyRobots[i].team != this.me.team && this.karbonite >= 25){
-					//log("making prophet: " + dist);
-					int dy = nearbyRobots[i].y - currentLocation.y;
-					int dx = nearbyRobots[i].x - currentLocation.x;
-					//log("delta: " + dx + "," + dy);
-					for(int d = 0; d < directions.size(); d++){
-						Pair selectedDir = directions.get(d);
-						if (Math.abs(dx) >= Math.abs(dy)){
-							dy = nearbyRobots[i].y - currentLocation.y;
-					        dx = nearbyRobots[i].x - currentLocation.x;
-							//log("in dx check");
-							if (dx > 0){
-								//log("dx negative");
-								dx = -1;
-							}
-							else{
-								//log("dx positive");
-								dx = 1;
-							}
-							if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false) && selectedDir.x == dx){
-							//signal enemy location and make prophet move away, spawn opposite signal
-								Pair enemyL = new Pair(nearbyRobots[i].x,nearbyRobots[i].y);
-								enemyTargetID = nearbyRobots[i].id;
-								this.signal(shiftLoc(enemyL),16);
-								return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
-							}
-						}
-						else{
-							//log("in dy check");
-							if (dy > 0){
-								dy = -1;
-							}
-							else{
-								dy = 1;
-							}
-							if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false) && selectedDir.y == dy){
-							//signal enemy location and make prophet move away, spawn opposite side of 
-								Pair enemyL = new Pair(nearbyRobots[i].x,nearbyRobots[i].y);
-								enemyTargetID = nearbyRobots[i].id;
-								this.signal(shiftLoc(enemyL),16);
-								return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
-							}
-						}
-					}
-				}
-				else if(nearbyRobots[i].team != this.me.team && this.fuel >= 10 && (nearbyRobots[i].id == enemyTargetID)){
-					log("EVERYTHING MATCHES, CHECKING DIST FOR ATTACK: " + dist);
-					log("CASTLE ATTACK RANGE: " + this.SPECS.UNITS[0].ATTACK_RADIUS[1]);
-					if (dist <= this.SPECS.UNITS[0].ATTACK_RADIUS[1]){
-						log("CASTLE ATTACK");
-						return attack(nearbyRobots[i].x - this.me.x, nearbyRobots[i].y - this.me.y);
-					}
-				}
-			}
-			
-			if (turn >= 100 && karbonite >= 100 && numberCastles == 1){
-				for(int d = 0; d < directions.size(); d++){
-					Pair selectedDir = directions.get(d);
-					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false)){
-						int sig = 1;
-						this.signal(sig,4);
-						return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
-					}
-				}
-				
-			}
-			
-			else if (turn >= 100 && karbonite >= 100 && numberCastles == 2){
-				for(int d = 0; d < directions.size(); d++){
-					Pair selectedDir = directions.get(d);
-					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap()),false){
-						Pair allySignal = teamCastles.get(1);
-						int signal = shiftLoc(allySignal);
-						signal = signal + 1; //final signal
-						this.signal(signal,25);
-						return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
-					}
-				}
-			}
-			else if (turn >= 100 && karbonite >= 100 && numberCastles == 3){
-				for(int d = 0; d < directions.size(); d++){
-					Pair selectedDir = directions.get(d);
-					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false)){
-						Pair allySignal = teamCastles.get(counter);
-						int signal = shiftLoc(allySignal);
-						counter++;
-						if (counter == teamCastles.size()){
-							counter = 1;
-							signal = signal + 1;
-						}
-						this.signal(signal,25);
-					}
-				}
-			}
-			else if (pilgrimsMade < 5){ //DO MATH WITH NUMBER OF CASTLES, too many pilgrims, not enough build matts to defend with prophets cant build
+			if ((pilgrimsMade < (((fuelOrders.size()+karboniteOrders.size())/numberCastles))) && karbonite >= 25){ //DO MATH WITH NUMBER OF CASTLES, too many pilgrims, not enough build matts to defend with prophets cant build
 				for(int d = 0; d < directions.size(); d++){
 					Pair selectedDir = directions.get(d);
 					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false)){
@@ -252,61 +91,19 @@ public class MyRobot extends BCAbstractRobot {
 					}
 				}
 			}
-			
-			/*
-			if (this.karbonite != 0 && isClosest && numberCastles == 1){
+
+			else if (this.karbonite >= 150 && this.fuel > 600 && turn > 60){
 				for(int d = 0; d < directions.size(); d++){
 					Pair selectedDir = directions.get(d);
-					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap())){
+					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false)){
 						int sig = 1;
 						this.signal(sig,4);
 						return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
 					}
 				}
+				
 			}
-			
-			else if (this.karbonite != 0 && isClosest && numberCastles == 2){
-				for(int d = 0; d < directions.size(); d++){
-					Pair selectedDir = directions.get(d);
-					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap())){
-						Pair allySignal = teamCastles.get(1);
-						int signal = shiftLoc(allySignal);
-						signal = signal + 1; //final signal
-						this.signal(signal,4);
-						return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
-					}
-				}
-			}
-			
-			else if (this.karbonite != 0 && isClosest && numberCastles == 3 && turn >= 3){
-				for(int d = 0; d < directions.size(); d++){
-					Pair selectedDir = directions.get(d);
-					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap())){
-						if (turn == 6){
-							Pair allySignal = teamCastles.get(counter);
-							int signal = shiftLoc(allySignal);
-							counter++;
-							if (counter == teamCastles.size()){
-								signal = signal + 1;
-							}
-							this.signal(signal,64);
-						}
-						return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
-					}
-				}
-			}
-			if (this.karbonite == 0 && isClosest && numberCastles == 3){
-				if (counter < teamCastles.size()){
-					Pair allySignal = teamCastles.get(counter);
-					int signal = shiftLoc(allySignal);
-					counter++;
-					if (counter == teamCastles.size()){
-						signal = signal + 1;
-					}
-					this.signal(signal,64);
-				}
-			}
-			*/
+		
 		}
 
   
@@ -314,44 +111,82 @@ public class MyRobot extends BCAbstractRobot {
     	else if (me.unit == SPECS.PILGRIM) {
 			
 			Pair currentLocation = new Pair(this.me.x,this.me.y);
-			if (turn == 1) // checking to see if just spawned, if so, save castle location and closest deposit
-			{
+			if (turn == 1) {
+				initializationGeneral();
+			}
+			if (target == null){ //check which resource desired, populate workerOrders
 				
-				initializationPilgrim();
-				resourceSpots = workerOrders;
-				target = findShortest(workerOrders);
-				//log("searching path for target: " + target.x + "," + target.y);
-				workerPath = searchPathResource(currentLocation,target);
-				while (workerPath == null){
-					//log("path not found, removing: " + target.x + "," + target.y);
-					//log("index of removed: " + indexShortest);
-					workerOrders.remove(indexShortest);
-					target = findShortest(workerOrders);
-					//log("next attempted path for target: " + target.x + "," + target.y);
-					workerPath = searchPathResource(currentLocation,target);
+				int[][] occupiedMap = getVisibleRobotMap();
+				Pair tempKarb = findShortest(karboniteOrders,true,true);
+				Pair tempFuel = findShortest(fuelOrders,true,false);
+				if (tempKarb == null && tempFuel != null){
+					target = tempFuel;
 				}
+				else if (tempFuel == null && tempKarb != null){
+					target = tempKarb;
+				}
+				else if(tempKarb != null && tempFuel != null){
+					target = shorterTwo(tempKarb,tempFuel,currentLocation);
+				}
+				else if (tempKarb == null && tempFuel == null){
+					karboniteOrders = copyKarbonite;
+					fuelOrders = copyFuel;
+					workerPath = searchPathCastleAdvanced(currentLocation,teamCastles.get(0));
+					Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
+					target = null;
+					return move(toGo.x - this.me.x, toGo.y - this.me.y);
+					
+				}
+				while (occupiedMap[target.y][target.x] > 0){ //do an if counter = 10, just return null
+					tempKarb = findShortest(karboniteOrders,true,true);
+					tempFuel = findShortest(fuelOrders,true,false);
+					if (tempKarb == null && tempFuel != null){
+						target = tempFuel;
+					}
+					else if (tempFuel == null && tempKarb != null){
+						target = tempKarb;
+					}
+					else if(tempKarb != null && tempFuel != null){
+						target = shorterTwo(tempKarb,tempFuel,currentLocation);
+					}
+					else if (tempKarb == null && tempFuel == null){
+						karboniteOrders = copyKarbonite;
+						fuelOrders = copyFuel;
+						workerPath = searchPathCastleAdvanced(currentLocation,teamCastles.get(0));
+						Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
+						target = null;
+						return move(toGo.x - this.me.x, toGo.y - this.me.y);
+					}
+				}
+				//log("my turn: " + this.me.turn);
+				//log("picked target: " + target.x + "," + target.y);
+				workerPath = searchPathResource(currentLocation,target);
 				Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
+				//log("before move");
 				return move(toGo.x - this.me.x, toGo.y - this.me.y);
-				//calculated = true;
+				
 			}
 
-			Robot[] nearbyRobots = getVisibleRobots();
-			//log("pilgrim befpre fpr loop");
-			for (int i = 0; i < nearbyRobots.length; i++){
-				if (nearbyRobots[i].team != this.me.team && nearbyRobots[i].unit != 2){
-					Pair badLoc = new Pair(nearbyRobots[i].x,nearbyRobots[i].y);
-					this.signal(shiftLoc(badLoc),16);
-					//log("pilgrim attempting to retreat");
-					return retreat(badLoc,currentLocation);
+			if(!atDestination){
+				if (currentLocation.x == target.x && currentLocation.y == target.y){
+					atDestination = true;
 				}
-				/*
-				else if (nearbyRobots[i].team == this.me.team && nearbyRobots[i].signal != -1 && nearbyRobots[i].id != this.me.id && nearbyRobots[i].unit == 2){
-					return retreat(unshiftSignal(nearbyRobots[i].signal),currentLocation);
+				else{
+					int[][] occupiedMap = getVisibleRobotMap();
+					if (occupiedMap[target.y][target.x] <= 0){
+						//log("going to next spot");
+						workerPath = searchPathResource(currentLocation,target);
+						Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
+						return move(toGo.x - this.me.x, toGo.y - this.me.y);
+					}
+					else{ //only occurs when very little spots left, maybe here go to enemy side resource tiles?
+						//log("occupied target tile");
+						//log("occupied target tile");
+						target = null;
+						return null;
+					}
 				}
-				*/
-					
 			}
-			
 
 			if (full){ //going back to castle/church
 				Pair deposit;
@@ -367,7 +202,7 @@ public class MyRobot extends BCAbstractRobot {
 				if (workerPath.size() == 0){
 					full = false;
 					atDestination = false;
-					workerOrders = resourceSpots;
+					//log("giving");
 					return give(deposit.x-currentLocation.x, deposit.y-currentLocation.y,this.me.karbonite,this.me.fuel);
 				}
 				else{
@@ -375,270 +210,158 @@ public class MyRobot extends BCAbstractRobot {
 					return move(toGo.x - this.me.x, toGo.y - this.me.y);
 				}
 			}
-			if (currentLocation.x == target.x && currentLocation.y == target.y){
-				//log("AT DESTINATION: " + target.x + "," + target.y);
-				atDestination = true;
-			}
-
-			if (!atDestination) {
-				target = findShortest(workerOrders);
-				workerPath = searchPathResource(currentLocation,target);
-				while (workerPath == null){
-					workerOrders.remove(indexShortest);
-					target = findShortest(workerOrders);
-					workerPath = searchPathResource(currentLocation,target);
-				}
-				Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
-				return move(toGo.x - this.me.x, toGo.y - this.me.y);
-			}
-			else{
-				Robot robotPilgrim = this.me; //might need to add behavior if nearby enemies, ADD IF STATEMENT BEFORE MINING TO CHECK DISTANCE FROM CLOSEST CASTLE, IF FAR AWAY, MAKE CHURCH
+			
+			if (atDestination && !full){
+				Robot robotPilgrim = this.me;
 				Robot[] checkChurches = getVisibleRobots();
-				for (int i = 0; i < checkChurches.length; i++){
-					if (checkChurches[i].team == this.me.team && checkChurches[i].unit == 1){
-						double dist = Math.pow(calculateDistance(new Pair(checkChurches[i].x,checkChurches[i].y),currentLocation),2);
-						if (dist <= 16){
-							churchNearby = true;
-							closeChurch = new Pair(checkChurches[i].x,checkChurches[i].y);
-							break;
+				if(!castleNearby && closeChurch == null && !churchNearby){
+					for (int i = 0; i < checkChurches.length; i++){
+						if (checkChurches[i].team == this.me.team && checkChurches[i].unit == 1){
+							double dist = Math.pow(calculateDistance(new Pair(checkChurches[i].x,checkChurches[i].y),currentLocation),2);
+							if (dist <= 36){
+								churchNearby = true;
+								closeChurch = new Pair(checkChurches[i].x,checkChurches[i].y);
+							}
+						}
+						else if(checkChurches[i].team == this.me.team && checkChurches[i].unit == 0){
+							double dist = Math.pow(calculateDistance(new Pair(checkChurches[i].x,checkChurches[i].y),currentLocation),2);
+							if (dist <= 36){
+								churchNearby = false;
+								castleNearby = true;
+								closeChurch = null;
+								break;
+							}
 						}
 					}
 				}
-				if (this.fuel > 400 && this.karbonite > 150 && !churchNearby){
+				if (this.fuel > 300 && this.karbonite > 50 && !churchNearby && !castleNearby){
 					for (int d = 0; d < directions.size(); d++){
 						if (isPassable(this.map, currentLocation, directions.get(d), getVisibleRobotMap(), true)){
 							return buildUnit(1,directions.get(d).x,directions.get(d).y);
 						}
 					}
 				}
-				if ((robotPilgrim.fuel < 100 && fuelMap[this.me.y][this.me.x]) || (robotPilgrim.karbonite < 20 && karboniteMap[this.me.y][this.me.x])){
-					//log("about to mine");
+				if ((robotPilgrim.fuel < 100 && fuelMap[this.me.y][this.me.x]) || (robotPilgrim.karbonite < 10 && karboniteMap[this.me.y][this.me.x])){
+					if (robotPilgrim.fuel == 90 || robotPilgrim.karbonite == 8){
+						full = true;
+					}
 					return mine();
 				}
-				else{	//need something for checking churches first, if it doesnt exist, go back to castle
-					//log("going back to castle because full");
-					full = true;
-					Pair deposit;
-					if (churchNearby){
-						deposit = closeChurch;
-						workerPath = searchPathCastleAdvanced(currentLocation, closeChurch);
-					}
-					else{
-						deposit = teamCastles.get(0);
-						workerPath = searchPathCastleAdvanced(currentLocation,teamCastles.get(0));
-					}
-					if (workerPath.size() == 0){
-						full = false;
-						atDestination = false;
-						workerOrders = resourceSpots;
-						//log("about to give");
-						
-						return give(deposit.x-currentLocation.x, deposit.y-currentLocation.y, this.me.karbonite, this.me.fuel);
-					}
-					else{
-						//log("not giving,moving");
-						Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
-						return move(toGo.x - this.me.x, toGo.y - this.me.y);
-					}
-				}					
-			}	
-    	}
-
-        else if (me.unit == SPECS.CRUSADER){
-			
+			}
 		}
-		
-    	
-        else if (me.unit == SPECS.PROPHET){  
+
+		else if (me.unit == SPECS.PROPHET){
+			if (turn == 1){
+				initializationGeneral();
+			}
 			Pair currentLocation = new Pair(this.me.x,this.me.y);
-			if (turn == 1) // checking to see if just spawned, if so, save castle location and closest deposit
-			{
-				initialization();
-				//return retreat(teamCastles.get(0), currentLocation);
-			}
-			Robot[] nearbyRobots = getVisibleRobots();
-			//log("status of finishIni: " + finishInitial);
-			
-			if (!finishInitial){
-				for (int i = 0; i < nearbyRobots.length; i++){
-					int nearbySignal = nearbyRobots[i].signal;
-					if (nearbySignal != -1 && nearbyRobots[i].turn >= 3 && nearbyRobots[i].unit == 0 && nearbyRobots[i].team == this.me.team){
-						//log("turn that im receiving: " + turn);
-						Pair allyCastle = unshiftSignal(nearbySignal);
-						//log("unshiftedAllyCastleReceived: " + allyCastle.x + "," + allyCastle.y);
-						Pair enemyCastle = determineEnemyCastle(map, allyCastle, horiSymm);
-						//log("unshiftedENEMYCastleReceived: " + enemyCastle.x + "," + enemyCastle.y);
-						teamCastles.add(allyCastle);
-						enemyCastles.add(enemyCastle);
-						if (determineLast(nearbySignal)){
-							finishInitial = true;
+			if(latticeSpot == null){
+				double lowestDistance = 1000;
+				Pair lowestPair = null;	
+				for (int dx = -8; dx < 9; dx++){
+					for (int dy = -8; dy < 9; dy++){
+						Pair tempPair = new Pair(this.me.x + dx, this.me.y + dy);
+						if(((dx*dx)+(dy*dy)) > SPECS.UNITS[this.me.unit].VISION_RADIUS){
+							continue;
+						}
+						double tempDistance = Math.pow(calculateDistance(currentLocation,tempPair),2);
+						int modOp = (tempPair.x + tempPair.y)% 2;
+						if(isPassable(this.map,currentLocation,new Pair(dx,dy),getVisibleRobotMap(),true) && tempDistance < lowestDistance && modOp == 0){
+							lowestPair = tempPair;
+							lowestDistance = tempDistance;
 						}
 					}
-					/*
-					if (nearbyRobots[i].team != this.me.team){
-						double dist = Math.pow(calculateDistance(new Pair(nearbyRobots[i].x,nearbyRobots[i].y),currentLocation),2);
-						if (dist <= this.SPECS.UNITS[4].ATTACK_RADIUS[0]){
-							Robot enemyBack = nearbyRobots[i];
-							return moveBackwards(new Pair(enemyBack.x,enemyBack.y),currentLocation);
-						}
-						if (sniperAttack(nearbyRobots[i], dist, currentLocation)){					//might need priorty, super early in game so debatable
-							log("BAD ATTACKBAD ATTACKBAD ATTACKBAD ATTACKBAD ATTACKBAD ATTACK");
-							return attack(nearbyRobots[i].x - currentLocation.x, nearbyRobots[i].y - currentLocation.y);
-						}
+			 	}
+				latticeSpot = lowestPair;
+				if (latticeSpot == null){
+					Pair randomMovement = null;
+					randomMovement = directionsDiagonal.get((int)Math.floor(Math.random() * directionsDiagonal.size()));
+					while (!isPassable(this.map,currentLocation,randomMovement,getVisibleRobotMap(),false)){
+						randomMovement = directionsDiagonal.get((int)Math.floor(Math.random() * directionsDiagonal.size()));
 					}
-					*/
-					/*
-					else if (!finishInitial){ //debatable if good
-						if (nearbyRobots[i].unit == 0){
-							startingCastle = new Pair(nearbyRobots[i].x, nearbyRobots[i].y);
-							if (turn <= 2){
-								workerPath = searchPathCastle(currentLocation, determineEnemyCastle(this.map,startingCastle,horiSymm));
-							}
-							else{
-								workerPath = searchPathCastleAdvanced(currentLocation, determineEnemyCastle(this.map,startingCastle,horiSymm));
-							}
-							Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
-							return move(toGo.x - this.me.x, toGo.y - this.me.y);
-						}
-					}
-					*/
+					return move(randomMovement.x, randomMovement.y);
 				}
 			}
 			
-			LinkedList<Robot> attackable = new LinkedList<Robot>();
-			LinkedList<Robot> enemyRobots = new LinkedList<Robot>();
-			LinkedList<Robot> enemyArchers = new LinkedList<Robot>();
-			
-			for (int s = 0; s < nearbyRobots.length; s++){
-				//if (nearbyRobots[s].team == this.me.team && nearbyRobots[s].
-				if (!this.isVisible(nearbyRobots[s]))
-					continue;
-				//log("nearbyRobot[s]: " + nearbyRobots[s].x + "," + nearbyRobots[s].y);
-				double dist = Math.pow(calculateDistance(new Pair(nearbyRobots[s].x,nearbyRobots[s].y),currentLocation),2);
-				if (sniperAttack(nearbyRobots[s], dist, currentLocation)){
-					attackable.add(nearbyRobots[s]);	
+			if(!settled){
+				if (this.me.x == latticeSpot.x && this.me.y == latticeSpot.y){
+					settled = true;
 				}
-				if (nearbyRobots[s].team != this.me.team && nearbyRobots[s].unit != 0 && nearbyRobots[s].unit != 1 && nearbyRobots[s].unit != 2){
-					enemyRobots.add(nearbyRobots[s]);
-					if (nearbyRobots[s].unit == 4){
-						enemyArchers.add(nearbyRobots[s]);
+				else{
+					int[][] occupyMap = getVisibleRobotMap();
+					if (occupyMap[latticeSpot.y][latticeSpot.x] <= 0){
+						workerPath = searchPathResource(currentLocation,latticeSpot);
+						Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
+						return move(toGo.x-currentLocation.x,toGo.y-currentLocation.y);
 					}
-				}
-				if (nearbyRobots[s].team == this.me.team && nearbyRobots[s].unit == 4 && nearbyRobots[s].signal != -1 && nearbyRobots[s].id != this.me.id){
-					enemyTargetID = nearbyRobots[s].signal;
-				}
-			}
-			if (!enemyRobots.isEmpty()){
-				for (int d = 0; d < enemyRobots.size(); d++){
-					Robot seen = enemyRobots.get(d);
-					double distBetween = Math.pow(calculateDistance(new Pair(seen.x,seen.y),currentLocation),2);
-					//log("enemy robot: " + seen.x + "," + seen. y);
-					//log("distBeteween in loop: " + distBetween);
-					if (distBetween <= 16 && (seen.unit == 5 || seen.unit == 3)){
-						Robot enemyBack = seen;
-						Pair enemyBackLoc = new Pair(enemyBack.x,enemyBack.y);
-						workerPath = searchPathAvoid(currentLocation, enemyBackLoc, enemyBackLoc );
-						if (workerPath != null){
-							log("kiting");
-							Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
-							return move(toGo.x - this.me.x, toGo.y - this.me.y);
-						}
-						return moveBackwards(enemyBackLoc,currentLocation); //THIS WAS CHANGED
+					else{
+						latticeSpot = null;
+						return null;
 					}
 				}
 			}
-			
-			if (enemyTargetID != 0){
-				boolean found = false;
-				Robot pickedTarget = null;
-				if (!attackable.isEmpty()){
-					for (int z = 0; z < attackable.size(); z++){
-						if (attackable.get(z).id == enemyTargetID){
-							found = true;
-							pickedTarget = attackable.get(z);
-							break;
-						}
+				
+			/*
+				for(int j = 0; j < passableDirections.size(); j++){
+					int toGoX = passableDirections.get(j).x;
+					int toGoY = passableDirections.get(j).y;
+
+					if((this.me.x + toGoX + this.me.y + toGoY) % 2 == 0){
+						settled = true;
+						return move(toGoX, toGoY);
 					}
 				}
-				if (found){
-					this.signal(pickedTarget.id, 9);
-					//log("COMMED ATTACK");
-					return attack(pickedTarget.x - currentLocation.x, pickedTarget.y - currentLocation.y);
+				if(!settled && passableDirections.size() != 0){
+					Pair randomMovement = passableDirections.get((int)Math.floor(Math.random() * passableDirections.size()));
+					return move(randomMovement.x, randomMovement.y);
 				}
 			}
-			
-			if (!enemyArchers.isEmpty()){ //attack archers first, everything else later
-				int indexRobot = 0;
-				Robot first = enemyArchers.get(0);
-				Pair firstLoc = new Pair(first.x,first.y);
-				Pair lowestLoc = firstLoc;
-				int lowestDistance = Math.abs(firstLoc.x-currentLocation.x) + Math.abs(firstLoc.y-currentLocation.y);//Math.pow(calculateDistance(firstLoc,currentLocation),2);
-				for (int a = 1; a < enemyArchers.size(); a++){
-					Robot picked = enemyArchers.get(a); //work on specific attack target selection, this is closest target
-					Pair pickedLoc = new Pair(picked.x,picked.y);
-					int tempDist = Math.abs(pickedLoc.x-currentLocation.x) + Math.abs(pickedLoc.y-currentLocation.y);
-					if (tempDist < lowestDistance){
-						lowestDistance = tempDist;
-						lowestLoc = pickedLoc;
-						indexRobot = a;
-					}
-				}
-				this.signal(enemyArchers.get(indexRobot).id, 9);
-				return attack(lowestLoc.x - currentLocation.x, lowestLoc.y - currentLocation.y);
-			}
-			
-			if (!attackable.isEmpty()){
-				int indexRobot = 0;
-				Robot first = attackable.get(0);
-				Pair firstLoc = new Pair(first.x,first.y);
-				Pair lowestLoc = firstLoc;
-				int lowestDistance = Math.abs(firstLoc.x-currentLocation.x) + Math.abs(firstLoc.y-currentLocation.y);//Math.pow(calculateDistance(firstLoc,currentLocation),2);
-				for (int a = 1; a < attackable.size(); a++){
-					Robot picked = attackable.get(a); //work on specific attack target selection, this is closest target
-					Pair pickedLoc = new Pair(picked.x,picked.y);
-					int tempDist = Math.abs(pickedLoc.x-currentLocation.x) + Math.abs(pickedLoc.y-currentLocation.y);
-					if (tempDist < lowestDistance){
-						lowestDistance = tempDist;
-						lowestLoc = pickedLoc;
-						indexRobot = a;
-					}
-				}
-				//log("good attack");
-				this.signal(attackable.get(indexRobot).id, 9);
-				return attack(lowestLoc.x - currentLocation.x, lowestLoc.y - currentLocation.y);
-			}
-			
-			
-			if (finishInitial){
-				//log("here");
-				int[][] robot_map = getVisibleRobotMap();
-				//log("next castle: " + enemyCastles.get(0).x + "," + enemyCastles.get(0).y);
-				if (attackable.isEmpty() && (robot_map[enemyCastles.get(0).y][enemyCastles.get(0).x] == 0) ){ //go to next enemy castle, how i determine this is SUPER hacky like i dont even use workerPath.isEmpty(), change this)
-					//enemyIndex++;
-					Pair removed = enemyCastles.poll();
-				}
-	
-				//workerPath = searchPathCastle(currentLocation, enemyCastles.get(0));
-				//Pair toGo = new Pair(workerPath.get(0).x, workerPath.get(0).y);
-				//return move(toGo.x - this.me.x, toGo.y - this.me.y);
-				return moveMe(this.me.unit,currentLocation, enemyCastles.get(0));
-			}
-	
+			*/
         }
 
-        else if (me.unit == SPECS.PREACHER){
-			
+        else if (me.unit == SPECS.CRUSADER){		
+		}	
+
+        else if (me.unit == SPECS.PREACHER){			
         }
 		
 		else if (me.unit == SPECS.CHURCH){
+			if (this.karbonite >= 150 && this.fuel > 600 && turn > 60){
+				for(int d = 0; d < directions.size(); d++){
+					Pair selectedDir = directions.get(d);
+					if(isPassable(this.map,currentLocation,selectedDir,getVisibleRobotMap(),false)){
+						int sig = 1;
+						this.signal(sig,4);
+						return buildUnit(SPECS.PROPHET,selectedDir.x,selectedDir.y); //need better spawns
+					}
+				}
+				
+			}
 		}
 	}
+	public Pair getClosestCastleLoc(){
+
+	}
+
 	public boolean sniperAttack(Robot near, double dist, Pair currentLoc){ //hardcoded for mages might need to consider case where more than 1 enemy in self splash range
 		boolean shouldAttack = false;
 		if((near.team != this.me.team) && (this.SPECS.UNITS[4].ATTACK_RADIUS[0] <= dist) && (this.SPECS.UNITS[4].ATTACK_RADIUS[1] >= dist)){
 			shouldAttack = true;
 		}
 		return shouldAttack;
+	}
+	
+	public Pair shorterTwo(Pair a, Pair b, Pair currentLocation){
+		double distA = Math.pow(calculateDistance(a,currentLocation),2);
+		double distB = Math.pow(calculateDistance(b,currentLocation),2);
+		if (distA <= distB){
+			fuelOrders.add(b);
+			return a;
+		}
+		else{
+			karboniteOrders.add(a);
+			return b;
+		}
 	}
 	
 	public int shiftLoc(Pair loc){
@@ -747,43 +470,6 @@ public class MyRobot extends BCAbstractRobot {
 		
 		
 	}
-	/*
-	public void iniCastles(Pair loc){
-		if (turn == 1){
-			for (int i = 1; i < castleArr.length; i++){
-				if(castleArr[i].turn != 0){
-					this.castleTalk(loc.x);
-					isFirst = false;
-				}
-			}
-		}
-		if (turn == 2){
-			if(isFirst){
-				for (int i = 1; i < castleArr.length; i++){
-					int x = castleArr[i].castle_talk;
-					if(castleArr[i].castle_talk != 0){
-						teamCastles.add(new Pair(x,0));
-					}
-				}
-			}
-			else if (!isFirst){
-				castleTalk(loc.y);
-				finishedSetup = true;
-			}
-		}	
-		if (turn == 3){
-			if (isFirst){
-				for (int i = 1; i < castleArr.length; i++){
-					int y = castleArr[i].castle_talk;
-					if(castleArr[i].castle_talk != 0){
-						teamCastles.get(i).y = y;
-					}
-					finishedSetup = true;
-				}
-			}	
-		}
-	}
-	*/
 	
 	public void iniCastlesClosest(Pair loc){
 		if (turn == 1){
@@ -872,7 +558,7 @@ public class MyRobot extends BCAbstractRobot {
 		}
 	}
 	
-	public void initializationPilgrim(){
+	public void initializationGeneral(){
 		determineSymmetry();
 		Robot[] nearby = getVisibleRobots();
 		for (int i = 0; i < nearby.length; i++){
@@ -883,6 +569,8 @@ public class MyRobot extends BCAbstractRobot {
 			}
 		}
 		calculateLocations();
+		copyKarbonite = karboniteOrders;
+		copyFuel = fuelOrders;
 		if(horiSymm){
 			movementDirections = horiSymmDirections;
 		}
@@ -890,7 +578,7 @@ public class MyRobot extends BCAbstractRobot {
 			movementDirections = vertSymmDirections;
 		}
 	}
-	
+	/*
 	public void initialization(){
 		determineSymmetry(); //changed
 		Robot[] nearby = getVisibleRobots();
@@ -913,6 +601,7 @@ public class MyRobot extends BCAbstractRobot {
 			movementDirections = vertSymmDirections;
 		}
 	}
+	*/
 	
 	public void castleInitial(){
 		Robot[] temp = getVisibleRobots();
@@ -954,13 +643,12 @@ public class MyRobot extends BCAbstractRobot {
 		return move(toGo.x - this.me.x, toGo.y - this.me.y);
 	}
 	
-
-	public Pair findShortest(LinkedList<Pair> targetArray){
-		Pair returnPair = new Pair(this.me.x,this.me.y);
+	public Pair findShortest(LinkedList<Pair> targetArray, boolean remove, boolean isKarbonite){
+		Pair returnPair;
 		double distance = -1;
 		for (int i = 0; i < targetArray.size(); i++){
 			Pair possible = targetArray.get(i);
-			double newDistance = calculateDistance(new Pair(this.me.x, this.me.y), possible);
+			double newDistance = Math.pow(calculateDistance(new Pair(this.me.x, this.me.y), possible),2);
 			if(distance == -1){
 				distance = newDistance;
 				indexShortest = i;
@@ -972,6 +660,14 @@ public class MyRobot extends BCAbstractRobot {
 					indexShortest = i;
 					returnPair = new Pair(possible.x,possible.y);
 				}
+			}
+		}
+		if (remove && distance != -1){
+			if(isKarbonite){
+				karboniteOrders.remove(indexShortest);
+			}
+			else{
+				fuelOrders.remove(indexShortest);
 			}
 		}
 		return returnPair;
@@ -1006,9 +702,13 @@ public class MyRobot extends BCAbstractRobot {
 			if (locCastle.y < center){
 				for(int i = 0; i < this.map[0].length/2; i++){
 					for(int j = 0; j < this.map.length; j++){
-						if(this.fuelMap[i][j] || this.karboniteMap[i][j]){
+						if(this.fuelMap[i][j]){
 							Pair pairToAdd = new Pair(j,i);
-							workerOrders.add(pairToAdd);
+							fuelOrders.add(pairToAdd);
+						}
+						else if (this.karboniteMap[i][j]){
+							Pair pairToAdd = new Pair(j,i);
+							karboniteOrders.add(pairToAdd);
 						}
 					}
 				}
@@ -1016,9 +716,13 @@ public class MyRobot extends BCAbstractRobot {
 			else{
 				for(int i = center; i < this.map[0].length; i++){
 					for(int j = 0; j < this.map.length; j++){
-						if(this.fuelMap[i][j] || this.karboniteMap[i][j]){
+						if(this.fuelMap[i][j]){
 							Pair pairToAdd = new Pair(j,i);
-							workerOrders.add(pairToAdd);
+							fuelOrders.add(pairToAdd);
+						}
+						else if (this.karboniteMap[i][j]){
+							Pair pairToAdd = new Pair(j,i);
+							karboniteOrders.add(pairToAdd);
 						}
 					}
 				}
@@ -1028,9 +732,15 @@ public class MyRobot extends BCAbstractRobot {
 			if (locCastle.x < center){
 				for(int i = 0; i < this.map[0].length; i++){
 					for(int j = 0; j < this.map.length/2; j++){
-						if(this.fuelMap[i][j] || this.karboniteMap[i][j]){
+						if(this.fuelMap[i][j]){
 							Pair pairToAdd = new Pair(j,i);
-							workerOrders.add(pairToAdd);
+							fuelOrders.add(pairToAdd);
+							//log("adding fuel: " + pairToAdd.x + "," + pairToAdd.y);
+						}
+						else if (this.karboniteMap[i][j]){
+							Pair pairToAdd = new Pair(j,i);
+							karboniteOrders.add(pairToAdd);
+							//log("adding K: " + pairToAdd.x + "," + pairToAdd.y);
 						}
 					}
 				}
@@ -1038,9 +748,13 @@ public class MyRobot extends BCAbstractRobot {
 			else{
 				for(int i = 0; i < this.map[0].length; i++){
 					for(int j = center; j < this.map.length; j++){
-						if(this.fuelMap[i][j] || this.karboniteMap[i][j]){
+						if(this.fuelMap[i][j]){
 							Pair pairToAdd = new Pair(j,i);
-							workerOrders.add(pairToAdd);
+							fuelOrders.add(pairToAdd);
+						}
+						else if (this.karboniteMap[i][j]){
+							Pair pairToAdd = new Pair(j,i);
+							karboniteOrders.add(pairToAdd);
 						}
 					}
 				}
@@ -1083,7 +797,6 @@ public class MyRobot extends BCAbstractRobot {
 					}
 				}
 			}
-			
 		}
 		return null;
 	}
@@ -1136,7 +849,7 @@ public class MyRobot extends BCAbstractRobot {
 			}
 			closed[check.y][check.x] = true;	
 			for(int i = 0; i < movementDirections.size(); i++){
-				if (isPassable(this.map,check,movementDirections.get(i),getVisibleRobotMap())){
+				if (isPassable(this.map,check,movementDirections.get(i),getVisibleRobotMap(),false)){
 					Pair neighbor = new Pair(check.x+movementDirections.get(i).x,check.y+movementDirections.get(i).y);
 					double dist = Math.pow(calculateDistance(neighbor,enemyLocation),2);
 					if (dist <= 16){ //this.SPECS.UNITS[4].ATTACK_RADIUS[0]
@@ -1205,21 +918,6 @@ public class MyRobot extends BCAbstractRobot {
 				if (isPassable(this.map,check,directions.get(i),getVisibleRobotMap(),false)){
 					Pair neighbor = new Pair(check.x+directions.get(i).x,check.y+directions.get(i).y);
 					boolean close = true;
-					/*
-					if (turn >= 8){
-						for (int d = 0; d < directions.size(); d++){
-							int[][] currentMap = getVisibleRobotMap();
-							Pair potential = new Pair(neighbor.x + directions.get(d).x, neighbor.y + directions.get(d).y);
-							int potentialID = currentMap[potential.y][potential.x];
-							Robot potentialRobot = getRobot(potentialID);
-							if (potentialRobot != null && potentialRobot.team == this.me.team){
-								log("not putting this in path: " + potential.x + "," + potential.y);
-								close = false;
-								break;
-							}
-						}
-					}
-					*/
 					
 					if (close && !closed[neighbor.y][neighbor.x] && !openGrid[neighbor.y][neighbor.x]){
 						neighbor.pathParent = check;
